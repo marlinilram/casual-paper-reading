@@ -1,6 +1,6 @@
 ---
 name: archive-paper-reading
-description: Read, summarize, analyze, explain, compare, critique, or survey academic papers and archive every such conversation as a visual HTML report under the current workspace's casual_reading/ directory. Save paper-native framework, qualitative, comparison, and result figures when available; capture/crop PDF pages when needed; and draw sourced SVG architecture diagrams or charts when originals are unavailable. Use for any paper-related request or follow-up involving an arXiv/preprint/PDF/publication, including method breakdowns, experiment or figure analysis, literature comparisons, technical-choice reasoning, limitations, reproduction notes, and related-work research. Always create the HTML artifact in addition to answering the user.
+description: Read, summarize, analyze, explain, compare, critique, or survey academic papers and archive every such conversation as a visual HTML report under the current workspace's casual_reading/ directory. Save paper-native framework, qualitative, comparison, and result figures when available; capture/crop PDF pages when needed; and draw sourced SVG architecture diagrams or charts when originals are unavailable. Use for any paper-related request or follow-up involving an arXiv/preprint/PDF/publication, including method breakdowns, experiment or figure analysis, literature comparisons, technical-choice reasoning, limitations, reproduction notes, and related-work research. Always create the HTML artifact, and automatically commit and push its exact files when the workspace has a writable GitHub upstream.
 ---
 
 # Archive Paper Reading
@@ -28,7 +28,26 @@ Treat the HTML artifact as part of the answer, not an optional afterthought. A p
 
    Resolve `<skill-dir>` to this skill folder. Resolve `<workspace-root>` from the environment context; otherwise use the repository root, then the current working directory.
 6. Verify the command exits successfully, the reported HTML file exists, and `casual_reading/index.html` links to it. Open the HTML in a browser when browser tooling is available; otherwise run the script's built-in structural validation and inspect the title, visuals, captions, and main sections.
-7. Give the user the analysis and a clickable absolute link to the HTML report. Mention important evidence/interpretation boundaries in both places.
+7. Run the conditional GitHub publication flow below. Do not finish before either publishing succeeds or a concrete skip/failure reason is known.
+8. Give the user the analysis and a clickable absolute link to the HTML report. Mention important evidence/interpretation boundaries in both places. When publication succeeds, also include the pushed commit SHA or URL; otherwise state why publication was skipped or failed.
+
+## Conditional GitHub publication
+
+After the report passes validation, run:
+
+```bash
+python3 <skill-dir>/scripts/publish_report.py \
+  --workspace-root <workspace-root> \
+  --report <absolute-report-path>
+```
+
+The helper publishes only when the workspace is inside a Git repository, an `upstream` remote points to `github.com`, the current checkout is on a branch, GitHub CLI authentication works, and `viewerPermission` is `WRITE`, `MAINTAIN`, or `ADMIN`. Treat a `published` result as success. Treat `skipped` or `unchanged` as a completed conditional check and explain the returned reason or state. Treat `local_commit_only`, `verification_failed`, or `error` as a publication failure and report the local commit when present.
+
+- Let the helper stage only the new report page, its same-named asset directory, and `casual_reading/index.html`. Never broaden the commit to the whole worktree.
+- If unrelated changes are already staged, do not alter them or work around the guard. Skip automatic publication and tell the user what blocked isolation.
+- Allow unrelated unstaged files to remain untouched. Never stash, reset, clean, overwrite, or delete user work to make publication succeed.
+- Push the current branch to `upstream` without force. Never create or replace remotes, bypass branch protection, request broader credentials, or retry with `--force`.
+- If no eligible writable GitHub upstream exists, keep the local HTML artifact and finish normally with the skip reason.
 
 ## Visual quality gate
 
@@ -59,6 +78,7 @@ Before finishing, confirm all of the following:
 - The page contains a summary, substantive analysis, sources, and the required number/types of rich visuals.
 - Original figures/screenshots have captions and source URLs; redrawn diagrams/charts disclose that they are synthesized.
 - `casual_reading/index.html` includes the page.
+- The conditional GitHub publication helper returned a terminal result, and a successful publication was verified against the remote branch.
 - The final response links the generated page.
 
 If the filesystem is unavailable, state that the archive step could not be completed and why; do not silently skip it.

@@ -1,4 +1,4 @@
 interface:
   display_name: "Paper Reading Visual Archive"
-  short_description: "Archive paper analysis with figures, screenshots, and diagrams"
-  default_prompt: "Use $archive-paper-reading to analyze this paper and archive a sourced visual report with framework and comparison figures."
+  short_description: "Archive and publish sourced visual paper reports"
+  default_prompt: "Use $archive-paper-reading to analyze this paper, archive a sourced visual report, and publish it when a writable GitHub upstream is available."
