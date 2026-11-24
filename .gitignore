@@ -1,0 +1,8 @@
+# Local preview server state
+casual_reading/.http-server-*.log
+casual_reading/.http-server-*.pid
+
+# Common local artifacts
+.DS_Store
+__pycache__/
+*.py[cod]

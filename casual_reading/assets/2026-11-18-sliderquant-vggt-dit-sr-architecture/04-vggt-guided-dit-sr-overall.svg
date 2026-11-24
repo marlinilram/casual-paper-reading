@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1900" height="1120" viewBox="0 0 1900 1120" role="img" aria-labelledby="title desc">
+  <title id="title">VGGT 引导的 DiT 类超分整体网络架构</title>
+  <desc id="desc">多视图低分辨率输入一方面进入 VGGT 几何编码器，另一方面进入 DiT 超分主干。VGGT 的相机、深度、点图、置信度和多层特征经几何条件适配器注入 DiT。SliderQuant 仅在离线分别校准 VGGT 和 DiT。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fbff"/><stop offset="0.58" stop-color="#f5f8fd"/><stop offset="1" stop-color="#f3efff"/></linearGradient>
+    <linearGradient id="vggt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ddf6ec"/><stop offset="1" stop-color="#c8ecdf"/></linearGradient>
+    <linearGradient id="dit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e3edff"/><stop offset="1" stop-color="#cddfff"/></linearGradient>
+    <linearGradient id="adapter" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0e9ff"/><stop offset="1" stop-color="#e1d5ff"/></linearGradient>
+    <linearGradient id="fp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4df"/><stop offset="1" stop-color="#ffe4b8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="7" stdDeviation="9" flood-color="#28344f" flood-opacity="0.14"/></filter>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#4d5d78"/></marker>
+    <marker id="arrowG" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#16805f"/></marker>
+    <marker id="arrowP" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#7546c9"/></marker>
+    <style>
+      text{font-family:Inter,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}.h1{font-size:34px;font-weight:820;fill:#15213a}.h2{font-size:23px;font-weight:800;fill:#24324b}.label{font-size:17px;font-weight:750;fill:#24324b}.body{font-size:14px;fill:#526174}.small{font-size:12px;fill:#68758a}.tiny{font-size:11px;fill:#718096}.white{fill:white}.box{fill:#fff;stroke:#9aa8bc;stroke-width:1.7}.vbox{fill:url(#vggt);stroke:#16805f;stroke-width:2}.dbox{fill:url(#dit);stroke:#315fc4;stroke-width:2}.abox{fill:url(#adapter);stroke:#7546c9;stroke-width:2}.fpbox{fill:url(#fp);stroke:#c87808;stroke-width:2}.edge{fill:none;stroke:#4d5d78;stroke-width:2.5;marker-end:url(#arrow)}.gedge{fill:none;stroke:#16805f;stroke-width:2.7;marker-end:url(#arrowG)}.pedge{fill:none;stroke:#7546c9;stroke-width:2.6;stroke-dasharray:9 7;marker-end:url(#arrowP)}
+    </style>
+  </defs>
+  <rect width="1900" height="1120" rx="32" fill="url(#bg)"/>
+  <text x="950" y="54" text-anchor="middle" class="h1">GeoSlider-SR：VGGT 几何条件引导的 SliderQuant DiT 超分架构</text>
+  <text x="950" y="86" text-anchor="middle" class="body">目标：把跨视图一致性从“隐式学习”变成显式几何条件，同时让两个 Transformer 主干均可独立量化部署</text>
+
+  <!-- Inputs -->
+  <rect x="54" y="422" width="210" height="146" rx="20" class="box" filter="url(#shadow)"/>
+  <text x="159" y="456" text-anchor="middle" class="h2">LR 输入束</text>
+  <text x="159" y="488" text-anchor="middle" class="body">参考帧 I₀LR</text>
+  <text x="159" y="514" text-anchor="middle" class="body">邻帧 / 邻视角 I1…SLR</text>
+  <text x="159" y="540" text-anchor="middle" class="small">可选：流式缓存前序帧</text>
+
+  <!-- VGGT branch -->
+  <rect x="318" y="126" width="1518" height="332" rx="26" fill="#f5fcf9" stroke="#69ad96" stroke-width="2"/>
+  <rect x="338" y="144" width="236" height="40" rx="20" fill="#16805f"/><text x="456" y="171" text-anchor="middle" class="label white">分支 A：VGGT 几何编码器</text>
+
+  <rect x="356" y="228" width="182" height="116" rx="17" class="fpbox"/>
+  <text x="447" y="258" text-anchor="middle" class="label">Patch Embed</text><text x="447" y="286" text-anchor="middle" class="body">图像 → patch tokens</text><text x="447" y="313" text-anchor="middle" class="small">FP16/BF16</text>
+  <rect x="590" y="204" width="328" height="164" rx="19" class="vbox" filter="url(#shadow)"/>
+  <text x="754" y="236" text-anchor="middle" class="h2">Quant VGGT Aggregator</text>
+  <text x="754" y="270" text-anchor="middle" class="body">[Frame Attention → Global Attention] × 24</text>
+  <text x="754" y="298" text-anchor="middle" class="body">QKV / Proj / FFN：W4A8</text>
+  <text x="754" y="326" text-anchor="middle" class="small">多层特征 tap：stage 5 / 12 / 18 / 24</text>
+  <text x="754" y="350" text-anchor="middle" class="small">特殊 token、Norm、RoPE 保持高精度</text>
+
+  <rect x="968" y="196" width="282" height="180" rx="19" class="fpbox"/>
+  <text x="1109" y="228" text-anchor="middle" class="h2">几何 Heads</text>
+  <text x="1109" y="262" text-anchor="middle" class="body">Camera → pose / intrinsics</text>
+  <text x="1109" y="288" text-anchor="middle" class="body">DPT → depth + confidence</text>
+  <text x="1109" y="314" text-anchor="middle" class="body">DPT → world points + confidence</text>
+  <text x="1109" y="340" text-anchor="middle" class="body">Track → correspondence / visibility</text>
+  <text x="1109" y="363" text-anchor="middle" class="small">初版全部 FP16/BF16</text>
+
+  <rect x="1300" y="182" width="486" height="208" rx="21" class="abox" filter="url(#shadow)"/>
+  <text x="1543" y="216" text-anchor="middle" class="h2">Geometry Condition Adapter</text>
+  <rect x="1326" y="246" width="134" height="108" rx="14" fill="#fff" stroke="#7546c9"/>
+  <text x="1393" y="272" text-anchor="middle" class="label">Token 路</text><text x="1393" y="297" text-anchor="middle" class="small">camera + taps</text><text x="1393" y="320" text-anchor="middle" class="small">→ K/V tokens</text><text x="1393" y="343" text-anchor="middle" class="tiny">线性 projector</text>
+  <rect x="1476" y="246" width="134" height="108" rx="14" fill="#fff" stroke="#7546c9"/>
+  <text x="1543" y="272" text-anchor="middle" class="label">Dense 路</text><text x="1543" y="297" text-anchor="middle" class="small">depth / point</text><text x="1543" y="320" text-anchor="middle" class="small">→ spatial residual</text><text x="1543" y="343" text-anchor="middle" class="tiny">多尺度卷积编码</text>
+  <rect x="1626" y="246" width="134" height="108" rx="14" fill="#fff" stroke="#7546c9"/>
+  <text x="1693" y="272" text-anchor="middle" class="label">Warp 路</text><text x="1693" y="297" text-anchor="middle" class="small">pose + depth</text><text x="1693" y="320" text-anchor="middle" class="small">→ 对齐邻帧</text><text x="1693" y="343" text-anchor="middle" class="tiny">conf / vis gating</text>
+
+  <path d="M264 464 C292 464 292 286 346 286" class="gedge"/>
+  <path d="M538 286 H580" class="gedge"/><path d="M918 286 H958" class="gedge"/><path d="M1250 286 H1290" class="gedge"/>
+
+  <!-- DiT branch -->
+  <rect x="318" y="492" width="1518" height="406" rx="26" fill="#f7faff" stroke="#86a9df" stroke-width="2"/>
+  <rect x="338" y="510" width="264" height="40" rx="20" fill="#315fc4"/><text x="470" y="537" text-anchor="middle" class="label white">分支 B：Latent / Pixel DiT-SR</text>
+
+  <rect x="356" y="624" width="176" height="122" rx="17" class="fpbox"/>
+  <text x="444" y="654" text-anchor="middle" class="label">LR Encoder</text><text x="444" y="681" text-anchor="middle" class="body">VAE/TAE 或 pixel stem</text><text x="444" y="708" text-anchor="middle" class="body">zLR + residual skip</text><text x="444" y="732" text-anchor="middle" class="small">建议先保高精度</text>
+  <rect x="572" y="624" width="172" height="122" rx="17" class="box"/>
+  <text x="658" y="654" text-anchor="middle" class="label">Noise + Patchify</text><text x="658" y="681" text-anchor="middle" class="body">zt = αt zHR + σt ε</text><text x="658" y="708" text-anchor="middle" class="body">concat / add zLR</text><text x="658" y="732" text-anchor="middle" class="small">训练与多步采样</text>
+
+  <rect x="786" y="594" width="210" height="182" rx="19" class="dbox" filter="url(#shadow)"/>
+  <text x="891" y="625" text-anchor="middle" class="h2">DiT Group 1</text><text x="891" y="659" text-anchor="middle" class="body">浅层 blocks</text><text x="891" y="685" text-anchor="middle" class="body">Self-Attn + Geo Cross-Attn</text><text x="891" y="711" text-anchor="middle" class="body">AdaLN(t, scale, degradation)</text><text x="891" y="738" text-anchor="middle" class="small">低层细节与局部结构</text><text x="891" y="760" text-anchor="middle" class="tiny">W4A8 linear + FP16 islands</text>
+  <rect x="1044" y="594" width="210" height="182" rx="19" class="dbox" filter="url(#shadow)"/>
+  <text x="1149" y="625" text-anchor="middle" class="h2">DiT Group 2</text><text x="1149" y="659" text-anchor="middle" class="body">中层 blocks</text><text x="1149" y="685" text-anchor="middle" class="body">Self-Attn + Geo Cross-Attn</text><text x="1149" y="711" text-anchor="middle" class="body">多尺度 spatial residual</text><text x="1149" y="738" text-anchor="middle" class="small">几何传播与纹理合成</text><text x="1149" y="760" text-anchor="middle" class="tiny">W4A8 首选主加速区</text>
+  <rect x="1302" y="594" width="210" height="182" rx="19" class="dbox" filter="url(#shadow)"/>
+  <text x="1407" y="625" text-anchor="middle" class="h2">DiT Group 3</text><text x="1407" y="659" text-anchor="middle" class="body">深层 blocks</text><text x="1407" y="685" text-anchor="middle" class="body">Self-Attn + Geo Cross-Attn</text><text x="1407" y="711" text-anchor="middle" class="body">confidence-gated refinement</text><text x="1407" y="738" text-anchor="middle" class="small">收敛到 ε / v / x₀</text><text x="1407" y="760" text-anchor="middle" class="tiny">末 block 可回退 W8A8 / FP16</text>
+
+  <rect x="1558" y="614" width="206" height="142" rx="18" class="fpbox"/>
+  <text x="1661" y="646" text-anchor="middle" class="h2">SR 输出头</text><text x="1661" y="679" text-anchor="middle" class="body">Final AdaLN + Linear</text><text x="1661" y="705" text-anchor="middle" class="body">VAE/TAE Decoder</text><text x="1661" y="731" text-anchor="middle" class="small">+ LR residual → IHR</text>
+
+  <path d="M264 504 C296 504 300 685 346 685" class="edge"/>
+  <path d="M532 685 H562" class="edge"/><path d="M744 685 H776" class="edge"/><path d="M996 685 H1034" class="edge"/><path d="M1254 685 H1292" class="edge"/><path d="M1512 685 H1548" class="edge"/>
+
+  <rect x="598" y="804" width="540" height="58" rx="14" class="box"/>
+  <text x="868" y="829" text-anchor="middle" class="label">条件向量：timestep t + SR scale + degradation code</text><text x="868" y="850" text-anchor="middle" class="small">经 MLP 生成各 block 的 AdaLN shift / scale / gate</text>
+  <path d="M868 804 C868 790 891 790 891 786" class="edge"/>
+  <path d="M992 833 C1149 833 1149 786 1149 786" class="edge"/>
+  <path d="M1080 833 C1407 833 1407 786 1407 786" class="edge"/>
+
+  <!-- Geometry injections -->
+  <path d="M1393 390 C1393 470 891 478 891 584" class="pedge"/>
+  <path d="M1543 390 C1543 486 1149 486 1149 584" class="pedge"/>
+  <path d="M1693 390 C1693 500 1407 500 1407 584" class="pedge"/>
+  <text x="1212" y="478" class="small" fill="#7546c9">紫色虚线：多尺度几何条件注入</text>
+
+  <rect x="1778" y="614" width="86" height="142" rx="18" class="box"/>
+  <text x="1821" y="648" text-anchor="middle" class="label">HR</text><text x="1821" y="679" text-anchor="middle" class="body">I₀SR</text><text x="1821" y="707" text-anchor="middle" class="small">×2/×4</text><text x="1821" y="732" text-anchor="middle" class="tiny">多视图一致</text>
+  <path d="M1764 685 H1768" class="edge"/>
+
+  <!-- Denoising loop -->
+  <path d="M1661 770 C1661 884 658 904 658 756" fill="none" stroke="#315fc4" stroke-width="2.2" stroke-dasharray="8 6" marker-end="url(#arrow)"/>
+  <text x="1260" y="888" class="small" fill="#315fc4">多步：zt → zt−1 循环；实时路径可蒸馏为 1–4 steps，但不属于 SliderQuant 本身</text>
+
+  <!-- Offline quantization and training lane -->
+  <rect x="54" y="942" width="1782" height="126" rx="24" fill="#fbf8ff" stroke="#7546c9" stroke-width="2.5" stroke-dasharray="11 8"/>
+  <text x="82" y="975" class="label" fill="#7546c9">离线训练 / PTQ</text>
+  <text x="82" y="1005" class="body">1) 先训练 FP16 联合模型：Ldiff + Lpixel + Lperceptual + Lwarp/reprojection + Ltemporal/multiview</text>
+  <text x="82" y="1033" class="body">2) 冻结模型后分两次执行 SliderQuant：VGGT 以 Stage 为窗口，DiT 以 block 为窗口；共用同一几何 / timestep 分层校准集，但不跨两个主干做一个超大滑窗</text>
+  <rect x="1326" y="968" width="480" height="72" rx="14" fill="#fff" stroke="#7546c9"/>
+  <text x="1566" y="994" text-anchor="middle" class="label">部署产物</text><text x="1566" y="1018" text-anchor="middle" class="body">Quant VGGT + Geometry Adapter + Quant DiT + FP16 Heads/Decoder</text><text x="1566" y="1038" text-anchor="middle" class="tiny">所有 α 与 AB 已吸收，在线无校准图中的教师分支</text>
+  <text x="1828" y="1094" text-anchor="end" class="small">本图是建议架构，不是现有论文已经联合训练或测速过的模型；模块接口来自 VGGT、DiT、SliderQuant 与 DiT-SR 量化文献</text>
+</svg>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="paper-archive-title" content="Wonderland：如何把视频生成与 3D 重建接成一条管线">
+  <meta name="paper-archive-summary" content="Wonderland 不用联合 loss 端到端融合两项任务，而是把相机可控视频扩散的 latent 作为共享中间语言：生成器补多视角证据，LaLRM 将证据前馈编译成显式 3DGS。">
+  <meta name="paper-archive-created" content="2026-10-20T21:40:58+08:00">
+  <title>Wonderland：如何把视频生成与 3D 重建接成一条管线</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f4f3ef; --paper:#fffdfa; --ink:#1c2533; --muted:#637083; --line:#d9dee7; --accent:#2957d3; --accent2:#7449d8; --good:#087f5b; --warn:#b45309; --soft:#edf2ff; --shadow:0 18px 50px rgba(29,42,68,.10); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:linear-gradient(180deg,#e9edff 0,#f4f3ef 24rem); color:var(--ink); font:16px/1.72 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }
+    a { color:var(--accent); text-underline-offset:3px; }
+    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:22px 0; color:#34415a; }
+    .topbar a { text-decoration:none; font-weight:700; }
+    .badge { display:inline-flex; align-items:center; gap:8px; border:1px solid rgba(41,87,211,.22); background:rgba(255,255,255,.72); border-radius:999px; padding:6px 11px; font-size:.78rem; font-weight:800; letter-spacing:.03em; color:#304a91; }
+    .hero { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.7); border-radius:28px; padding:clamp(28px,5vw,62px); color:white; background:radial-gradient(circle at 80% 10%,rgba(255,255,255,.24),transparent 28%),linear-gradient(135deg,#17358f,#5841c5 68%,#9c4dcc); box-shadow:var(--shadow); }
+    .hero:after { content:""; position:absolute; width:280px; height:280px; border:1px solid rgba(255,255,255,.25); border-radius:50%; right:-90px; bottom:-160px; }
+    .eyebrow { font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:900; opacity:.82; }
+    h1 { max-width:900px; margin:.35em 0 .3em; font-size:clamp(2rem,5vw,4.5rem); line-height:1.05; letter-spacing:-.045em; }
+    .hero-summary { max-width:850px; margin:0; font-size:clamp(1.05rem,2vw,1.32rem); opacity:.92; }
+    .meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+    .meta span,.meta a { color:white; text-decoration:none; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.11); border-radius:999px; padding:7px 11px; font-size:.82rem; }
+    main { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:28px; padding:34px 0 70px; }
+    article { min-width:0; }
+    aside { align-self:start; position:sticky; top:18px; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:24px; box-shadow:0 8px 30px rgba(29,42,68,.05); margin-bottom:20px; }
+    .toc a { display:block; padding:7px 0; text-decoration:none; color:var(--muted); border-bottom:1px dashed var(--line); font-size:.9rem; }
+    .toc a:last-child { border:0; }
+    h2 { margin:0 0 14px; font-size:clamp(1.45rem,3vw,2.05rem); line-height:1.2; letter-spacing:-.025em; }
+    h3 { margin:0 0 9px; font-size:1.04rem; }
+    p { margin:.65em 0; }
+    .lede { color:#30466f; font-size:1.08rem; font-weight:700; }
+    .key-grid,.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+    .key { border-top:4px solid var(--accent); background:linear-gradient(180deg,var(--soft),transparent); border-radius:14px; padding:17px; font-weight:650; }
+    .flow { display:flex; align-items:stretch; gap:10px; overflow-x:auto; padding:4px 2px 12px; }
+    .flow-node { flex:1 0 170px; min-height:116px; border:1px solid #cdd7fa; border-radius:16px; padding:17px; background:linear-gradient(145deg,#f8faff,#edf2ff); }
+    .flow-node strong { display:block; color:#2447ad; font-size:1rem; }
+    .flow-node small { display:block; margin-top:7px; color:#56647b; }
+    .arrow { align-self:center; color:var(--accent2); font-size:1.55rem; font-weight:900; }
+    .metric { border-radius:16px; padding:18px; background:#f6f7fb; border:1px solid var(--line); }
+    .metric.good { background:#ecfdf5; border-color:#b7ead7; }
+    .metric.warn { background:#fff7ed; border-color:#fed7aa; }
+    .metric-label { color:var(--muted); font-size:.79rem; text-transform:uppercase; letter-spacing:.07em; font-weight:800; }
+    .metric-value { display:block; margin:4px 0; font-size:1.7rem; line-height:1.15; font-weight:900; letter-spacing:-.03em; }
+    .metric-context { color:var(--muted); font-size:.85rem; }
+    ul { padding-left:1.25rem; }
+    li { margin:.45em 0; }
+    .callout { margin:18px 0; border-left:5px solid var(--accent); background:#eef3ff; border-radius:0 14px 14px 0; padding:16px 18px; }
+    .callout.good { border-color:var(--good); background:#ecfdf5; }
+    .callout.warn { border-color:var(--warn); background:#fff7ed; }
+    .table-wrap { overflow:auto; margin:18px 0; border:1px solid var(--line); border-radius:14px; }
+    table { width:100%; border-collapse:collapse; min-width:520px; background:var(--paper); }
+    caption { text-align:left; padding:13px 15px; font-weight:800; background:#f1f4fa; }
+    th,td { padding:12px 15px; text-align:left; vertical-align:top; border-top:1px solid var(--line); }
+    th { color:#30466f; font-size:.84rem; background:#fafbfe; }
+    figure { position:relative; margin:20px 0; }
+    figure img { width:100%; max-height:680px; object-fit:contain; background:#f5f6f8; border:1px solid var(--line); border-radius:16px; transition:transform .18s ease,box-shadow .18s ease; }
+    .figure-link { display:block; line-height:0; }
+    .figure-link:hover img { transform:translateY(-2px); box-shadow:0 14px 36px rgba(29,42,68,.13); }
+    figcaption { color:var(--muted); font-size:.86rem; margin-top:8px; }
+    .visual-badges { position:absolute; z-index:2; display:flex; gap:6px; top:10px; left:10px; }
+    .visual-badges span { border:1px solid rgba(255,255,255,.7); background:rgba(22,32,51,.82); color:white; border-radius:999px; padding:4px 8px; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; backdrop-filter:blur(8px); }
+    .visual-group { margin:24px 0; padding:18px; border:1px solid var(--line); border-radius:17px; background:#f8f9fc; }
+    .visual-group h3 { margin-bottom:2px; }
+    .visual-group-caption { margin:.25em 0 14px; color:var(--muted); }
+    .visual-grid { display:grid; grid-template-columns:repeat(var(--visual-columns,2),minmax(0,1fr)); gap:14px; }
+    .figure-card { margin:0; min-width:0; }
+    .figure-card img { height:clamp(180px,28vw,360px); object-fit:contain; }
+    code { border:1px solid var(--line); background:#f2f4f8; border-radius:6px; padding:.12em .36em; font-size:.88em; }
+    .refs { list-style:none; padding:0; }
+    .refs li { padding:10px 0; border-bottom:1px solid var(--line); }
+    .refs li:last-child { border:0; }
+    .foot { color:var(--muted); font-size:.82rem; padding:0 0 40px; }
+    @media (max-width:820px) { main { grid-template-columns:1fr; } aside { position:static; order:-1; } .toc { display:none; } .hero { border-radius:22px; } .visual-grid { grid-template-columns:1fr; } }
+    @media (prefers-color-scheme:dark) { :root { --bg:#111827; --paper:#182131; --ink:#e7edf7; --muted:#a8b3c7; --line:#334158; --soft:#202d4a; } body { background:linear-gradient(180deg,#151d3d 0,#111827 24rem); } .topbar { color:#cbd5e1; } .badge { background:#1d2941;color:#c8d5ff; } .lede { color:#cad7f0; } .key { background:#202d4a; } .flow-node { background:#202d4a;border-color:#405282; } .flow-node strong { color:#b8c7ff; } .flow-node small { color:#bdc8dc; } .metric,th,caption { background:#202a3b; } .metric.good,.callout.good { background:#12352d; } .metric.warn,.callout.warn { background:#3b2a16; } .callout { background:#202f52; } .visual-group { background:#202a3b; } code { background:#222c3d; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="topbar"><a href="index.html">← Casual Reading</a><span class="badge">PAPER ANALYSIS</span></nav>
+    <header class="hero"><div class="eyebrow">方法机制分析</div><h1>Wonderland：如何把视频生成与 3D 重建接成一条管线</h1><p class="hero-summary">Wonderland 不用联合 loss 端到端融合两项任务，而是把相机可控视频扩散的 latent 作为共享中间语言：生成器补多视角证据，LaLRM 将证据前馈编译成显式 3DGS。</p><div class="meta"><a href="https://arxiv.org/abs/2412.12091" target="_blank" rel="noreferrer">Wonderland: Navigating 3D Scenes from a Single Image</a><span>Hanwen Liang et al.</span><span>CVPR</span><span>2025</span><span>arXiv:2412.12091</span></div></header>
+    <main>
+      <article><section class="panel" id="key-points"><h2>核心结论</h2><div class="key-grid"><div class="key">生成端从单图和相机轨迹制造多视角、3D-aware 的视频 latent。</div><div class="key">重建端不解码再编码 RGB，而是直接消费 latent + Plücker ray，前馈预测 3DGS。</div><div class="key">真实视频 latent、生成视频 latent以及 seen/unseen view 监督共同解决训练/推理分布差异。</div><div class="key">这是单向串联式融合；3D 重建 loss 不会反向改善视频生成器。</div></div></section><section class="panel" id="metrics"><h2>关键证据</h2><div class="metric-grid"><div class="metric good"><span class="metric-label">时空压缩</span><span class="metric-value">256×</span><span class="metric-context">4×8×8 VAE compression</span></div><div class="metric good"><span class="metric-label">输入视频长度</span><span class="metric-value">49 frames</span><span class="metric-context">480×720</span></div><div class="metric good"><span class="metric-label">监督视角</span><span class="metric-value">24 + 24</span><span class="metric-context">seen + unseen</span></div><div class="metric warn"><span class="metric-label">预测 Gaussians</span><span class="metric-value">≈4.23M</span><span class="metric-context">每个场景</span></div><div class="metric good"><span class="metric-label">OOD 训练视频</span><span class="metric-value">20K</span><span class="metric-context">Flux 图像 prompt + RE10K 轨迹</span></div><div class="metric warn"><span class="metric-label">端到端推理</span><span class="metric-value">≈5 min</span><span class="metric-context">A100；生成阶段是瓶颈</span></div></div></section><section class="panel" id="section-1"><h2>系统总览：视频 latent 是生成与重建的共享语言</h2><p class="lede">生成器制造多视角证据，LaLRM 将这些证据前馈编译成可持续渲染的 3DGS。</p><p>输入单张图像和目标相机轨迹后，双分支相机控制的 CogVideoX-5B-I2V 生成 3D-aware video latent；LaLRM 直接接收 latent 与相机 Plücker token，输出显式 Gaussian scene。它绕过“解码视频 → 再编码图像特征 → 每场景优化”的传统链路。</p><figure class="figure-full"><div class="visual-badges"><span>architecture</span><span>paper</span></div><a class="figure-link" href="assets/2026-10-20-wonderland-generation-reconstruction-fusion/01-figure-02-01.png" target="_blank"><img src="assets/2026-10-20-wonderland-generation-reconstruction-fusion/01-figure-02-01.png" alt="Wonderland system overview" loading="lazy"></a><figcaption>Wonderland Figure 2：双分支相机条件、generated video latent、LaLRM 与 novel-view 3DGS 的完整数据流。 · <a href="https://arxiv.org/html/2412.12091#S1.F2" target="_blank" rel="noreferrer">source</a></figcaption></figure></section><section class="panel" id="section-2"><h2>生成端：把单图扩展成可重建的伪多视角观测</h2><p class="lede">后端 3DGS 能否成立，取决于视频生成器是否静态、跨视角一致且服从相机。</p><p>普通 I2V 生成器可能忽略相机或让物体运动，这两种误差都会让静态重建失败。ControlNet branch 复制基础模型前 21/42 个 Transformer block，逐层注入 Plücker ray，主要提供强 pose control；LoRA branch 在冻结主干上用 rank-256 LoRA 适配静态场景与相机特征，主要保护画质、泛化并抑制动态。</p><div class="table-wrap"><table><caption>双分支角色分工</caption><thead><tr><th>结构</th><th>R_err↓</th><th>T_err↓</th><th>主要作用</th></tr></thead><tbody><tr><td>LoRA branch</td><td>0.102</td><td>0.157</td><td>静态域适配与低成本主干调整</td></tr><tr><td>Control branch</td><td>0.058</td><td>0.104</td><td>更强的轨迹控制</td></tr><tr><td>Dual branch</td><td>0.052</td><td>0.095</td><td>兼顾画质与控制</td></tr></tbody></table></div><figure class="figure-full"><div class="visual-badges"><span>ablation</span><span>chart</span></div><a class="figure-link" href="assets/2026-10-20-wonderland-generation-reconstruction-fusion/02-wonder-camera.svg" target="_blank"><img src="assets/2026-10-20-wonderland-generation-reconstruction-fusion/02-wonder-camera.svg" alt="Wonderland dual-branch camera control ablation" loading="lazy"></a><figcaption>重绘自 Wonderland Table A2：Control branch 显著降低 pose error，叠加 LoRA 的 Dual branch 最佳。 · <a href="https://arxiv.org/html/2412.12091#A1.T2" target="_blank" rel="noreferrer">source</a></figcaption></figure></section><section class="panel" id="section-3"><h2>共享 latent：两项任务真正的接口</h2><p class="lede">LaLRM 直接从扩散 latent 提升到 3D，不经过“解码 RGB → 再做图像特征提取”。</p><p>49×480×720 视频经冻结 3D-VAE 压缩为 13×60×90 latent，token 数在时空上缩小 256 倍。视频 latent 保存生成先验、跨帧对应和感知细节，Plücker token 则给出每个特征对应的相机射线。</p><p>两组 token patchify 到同样长度后按通道拼接，进入 24 层、hidden size 1024 的 Transformer。3D-DeConv 为每个像素位置预测 RGB、scale、quaternion、opacity 和沿射线距离，组合成约 423 万个 Gaussian。</p><div class="callout warn"><h3>为什么冻结 VAE</h3><div>冻结的 web-scale 视频 latent 是稳定的跨任务接口。联合微调 encoder 会破坏这套表征：Tanks PSNR 从 22.66 降到 20.75 dB。</div></div><figure class="figure-full"><div class="visual-badges"><span>ablation</span><span>chart</span></div><a class="figure-link" href="assets/2026-10-20-wonderland-generation-reconstruction-fusion/03-wonder-latent.svg" target="_blank"><img src="assets/2026-10-20-wonderland-generation-reconstruction-fusion/03-wonder-latent.svg" alt="Wonderland latent versus RGB reconstruction" loading="lazy"></a><figcaption>重绘自 Wonderland Table 3：冻结 3D-VAE 的 latent 输入在 RE10K 与 Tanks 上都优于 RGB-49。 · <a href="https://arxiv.org/html/2412.12091#S4.T3" target="_blank" rel="noreferrer">source</a></figcaption></figure></section><section class="panel" id="section-4"><h2>训练数据如何弥合真实重建与生成分布</h2><p class="lede">LaLRM 训练时最初看真实视频 latent，推理时却看扩散生成 latent；progressive curriculum 专门处理这个 domain gap。</p><p>第一阶段在低分辨率、有真实相机标注的视频上学习 3D geometry。49 帧 sampled clip 是 seen views，同时再用 24 个不在 latent 输入中的 unseen views监督，使模型不能只复制输入帧。</p><p>第二阶段升到 480×720，并加入 2 万条由自家相机可控生成器产生的 in-the-wild latent。图像 prompt 来自 Flux，轨迹来自 RE10K；生成 latent 是 LaLRM 输入，latent 解码帧提供监督，从而让后端适应部署时的生成分布。</p><ul><li>低分辨率训练 200K iterations，高分辨率微调 100K iterations。</li><li>每个场景共用 48 个监督视角：24 seen + 24 unseen。</li><li>加入生成 OOD 数据后，Tanks LPIPS 从 0.359 降到 0.344，定性泛化改善更明显。</li></ul></section><section class="panel" id="section-5"><h2>端到端结果与准确归因</h2><p class="lede">结果来自相机控制、稳定 latent、前馈重建和生成分布适配的共同作用。</p><p>Wonderland 在 RE10K、DL3DV 与 Tanks 的单图 3D scene generation 上均超过 ViewCrafter；优势集中于遮挡区和大幅偏离输入视角的区域。这支持“生成 prior 补信息、显式 3D 固化一致性”的分工，但并不证明每个模块单独造成全部收益。</p><div class="callout warn"><h3>接口仍不完全闭合</h3><div>论文推理时发现，用生成视频重新跑 COLMAP 得到的 pose 优于直接使用命令相机 pose，说明生成轨迹与目标轨迹仍有残余偏差。</div></div><figure class="figure-full"><div class="visual-badges"><span>quantitative</span><span>chart</span></div><a class="figure-link" href="assets/2026-10-20-wonderland-generation-reconstruction-fusion/04-wonder-benchmark.svg" target="_blank"><img src="assets/2026-10-20-wonderland-generation-reconstruction-fusion/04-wonder-benchmark.svg" alt="Wonderland benchmark PSNR comparison" loading="lazy"></a><figcaption>重绘自 Wonderland Table 2：Wonderland 在三个 benchmark 的单图新视角 PSNR 均高于 ViewCrafter。 · <a href="https://arxiv.org/html/2412.12091#S4.T2" target="_blank" rel="noreferrer">source</a></figcaption></figure></section><section class="panel" id="section-6"><h2>融合的准确定位：生成证据，再编译成 3D</h2><p class="lede">Wonderland 是串联式、单向融合，不是生成与重建的闭环联合优化。</p><p>视频模型用 diffusion objective 单独训练，LaLRM 用 3DGS rendering loss 单独训练。重建 loss 不会反向改善生成器的相机控制或几何一致性；共享 latent、相机坐标协议和生成数据微调负责把两个阶段接牢。</p><p>因此可以把生成器理解成“伪多视角证据制造器”，把 LaLRM 理解成“把瞬时、可能带 hallucination 的证据编译成持久 3D 表示的编译器”。</p></section><section class="panel" id="limitations"><h2>局限与开放问题</h2><ul><li>偶发物体运动会破坏静态 3DGS；方法当前聚焦静态场景。</li><li>推理约 5 分钟，主要耗时仍来自视频扩散，而非 LaLRM。</li><li>LaLRM 能固化 hallucinated 内容的一致性，但没有外部证据判断遮挡补全是否真实。</li><li>生成与重建没有端到端反馈，生成器的几何误差只能由下游吸收或通过 COLMAP 重估 pose。</li></ul></section><section class="panel" id="evidence-boundaries"><h2>证据与推断边界</h2><ul><li>论文直接验证：双分支相机控制、latent vs RGB、冻结 vs微调 encoder、生成 OOD 数据的收益。</li><li>方法解释：共享 latent 是 representation bridge，相机 Plücker 是 coordinate bridge，progressive data 是 distribution bridge。</li><li>未验证：若让 3D rendering loss 反传到视频生成器，是否能进一步提升几何一致性。</li></ul></section><section class="panel" id="references"><h2>来源与版本</h2><p class="lede">Wonderland Figure 2 来自 arXiv HTML；消融与 benchmark 图为从论文表格转录的 SVG，均保留精确来源。数值对应 arXiv v2。</p><ul class="refs"><li><a href="https://arxiv.org/pdf/2412.12091" target="_blank" rel="noreferrer">Wonderland PDF</a> — arXiv:2412.12091</li><li><a href="https://arxiv.org/html/2412.12091#S3.SS2" target="_blank" rel="noreferrer">Wonderland §3.2</a> — 相机可控视频 latent 生成</li><li><a href="https://arxiv.org/html/2412.12091#S3.SS3" target="_blank" rel="noreferrer">Wonderland §3.3</a> — LaLRM 与 progressive training</li><li><a href="https://arxiv.org/html/2412.12091#S4.SS2" target="_blank" rel="noreferrer">Wonderland §4.2</a> — 3D scene generation 结果</li><li><a href="https://arxiv.org/html/2412.12091#S4.SS3" target="_blank" rel="noreferrer">Wonderland §4.3</a> — latent/RGB 与 encoder 消融</li><li><a href="https://arxiv.org/html/2412.12091#A1" target="_blank" rel="noreferrer">Wonderland Appendix A</a> — 双分支相机控制消融</li></ul></section></article>
+      <aside><div class="panel"><h3>阅读信息</h3><p><strong>方法机制分析</strong><br><span class="metric-context">2026-10-20 21:40 CST</span></p><span class="badge">CogVideoX</span> <span class="badge">LaLRM</span> <span class="badge">3DGS</span> <span class="badge">video latent</span> <span class="badge">single-image 3D</span></div><div class="panel toc"><h3>目录</h3><a href="#key-points">核心结论</a><a href="#metrics">关键证据</a><a href="#section-1">系统总览：视频 latent 是生成与重建的共享语言</a><a href="#section-2">生成端：把单图扩展成可重建的伪多视角观测</a><a href="#section-3">共享 latent：两项任务真正的接口</a><a href="#section-4">训练数据如何弥合真实重建与生成分布</a><a href="#section-5">端到端结果与准确归因</a><a href="#section-6">融合的准确定位：生成证据，再编译成 3D</a><a href="#limitations">局限与开放问题</a><a href="#evidence-boundaries">证据与推断边界</a><a href="#references">来源与版本</a></div></aside>
+    </main>
+    <footer class="foot">Generated on 2026-10-20 21:40 CST · Evidence and interpretations should be checked against the linked paper version.</footer>
+  </div>
+  <script type="application/json" id="paper-reading-metadata">{"title": "Wonderland：如何把视频生成与 3D 重建接成一条管线", "summary": "Wonderland 不用联合 loss 端到端融合两项任务，而是把相机可控视频扩散的 latent 作为共享中间语言：生成器补多视角证据，LaLRM 将证据前馈编译成显式 3DGS。", "created_at": "2026-10-20T21:40:58+08:00", "paper_title": "Wonderland: Navigating 3D Scenes from a Single Image", "paper_url": "https://arxiv.org/abs/2412.12091", "analysis_kind": "方法机制分析", "tags": ["CogVideoX", "LaLRM", "3DGS", "video latent", "single-image 3D"]}</script>
+</body>
+</html>

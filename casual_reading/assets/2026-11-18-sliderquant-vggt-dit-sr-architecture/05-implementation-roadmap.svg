@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="780" viewBox="0 0 1600 780" role="img" aria-labelledby="title desc">
+  <title id="title">VGGT 与 DiT 超分联合模型的实现分阶段路线图</title>
+  <desc id="desc">从全精度几何条件有效性验证，到分别量化 VGGT 和 DiT，再到联合低比特部署的四阶段路线。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fbff"/><stop offset="1" stop-color="#f5f0ff"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#28344f" flood-opacity="0.13"/></filter>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#4d5d78"/></marker>
+    <style>text{font-family:Inter,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}.h1{font-size:32px;font-weight:800;fill:#15213a}.h2{font-size:22px;font-weight:800;fill:#24324b}.label{font-size:17px;font-weight:750;fill:#24324b}.body{font-size:14px;fill:#526174}.small{font-size:12px;fill:#68758a}.card{stroke-width:2;filter:url(#shadow)}.edge{fill:none;stroke:#4d5d78;stroke-width:3;marker-end:url(#arrow)}</style>
+  </defs>
+  <rect width="1600" height="780" rx="30" fill="url(#bg)"/>
+  <text x="800" y="54" text-anchor="middle" class="h1">从结构验证到低比特部署：四阶段实现路线</text>
+  <text x="800" y="85" text-anchor="middle" class="body">先证明几何条件对 SR 有益，再做量化；否则无法区分架构收益、量化损失与 kernel 性能问题</text>
+
+  <rect x="66" y="154" width="322" height="404" rx="24" fill="#fff6e5" stroke="#c87808" class="card"/>
+  <circle cx="110" cy="199" r="25" fill="#c87808"/><text x="110" y="207" text-anchor="middle" font-size="22" font-weight="800" fill="white">A0</text>
+  <text x="150" y="207" class="h2">FP16 架构基线</text>
+  <text x="92" y="254" class="label">目标</text><text x="92" y="280" class="body">证明 VGGT 条件真的改善超分</text>
+  <text x="92" y="320" class="label">实现</text><text x="92" y="346" class="body">冻结 VGGT + 轻量 Adapter</text><text x="92" y="372" class="body">DiT-SR 全精度训练 / 微调</text><text x="92" y="398" class="body">先做 token + dense 两路条件</text>
+  <text x="92" y="438" class="label">通过门槛</text><text x="92" y="464" class="body">PSNR/LPIPS 不退化</text><text x="92" y="490" class="body">warp error 与 flicker 明显下降</text><text x="92" y="516" class="small">否则停止量化，先修 Adapter</text>
+
+  <rect x="436" y="154" width="322" height="404" rx="24" fill="#eaf8f2" stroke="#16805f" class="card"/>
+  <circle cx="480" cy="199" r="25" fill="#16805f"/><text x="480" y="207" text-anchor="middle" font-size="22" font-weight="800" fill="white">A1</text>
+  <text x="520" y="207" class="h2">仅量化 VGGT</text>
+  <text x="462" y="254" class="label">目标</text><text x="462" y="280" class="body">隔离几何误差对 SR 的影响</text>
+  <text x="462" y="320" class="label">实现</text><text x="462" y="346" class="body">QuantVGGT W8A8 → W4A8</text><text x="462" y="372" class="body">再叠加 Slider stage windows</text><text x="462" y="398" class="body">DiT 与 Heads 保持 FP16</text>
+  <text x="462" y="438" class="label">通过门槛</text><text x="462" y="464" class="body">pose/depth/point 误差受控</text><text x="462" y="490" class="body">SR 指标相对 A0 基本不退化</text><text x="462" y="516" class="small">优先查特殊 token 与 tap 层</text>
+
+  <rect x="806" y="154" width="322" height="404" rx="24" fill="#eaf1ff" stroke="#315fc4" class="card"/>
+  <circle cx="850" cy="199" r="25" fill="#315fc4"/><text x="850" y="207" text-anchor="middle" font-size="22" font-weight="800" fill="white">A2</text>
+  <text x="890" y="207" class="h2">仅量化 DiT</text>
+  <text x="832" y="254" class="label">目标</text><text x="832" y="280" class="body">验证 timestep / 高频感知 PTQ</text>
+  <text x="832" y="320" class="label">实现</text><text x="832" y="346" class="body">W8A8 → Slider W4A8</text><text x="832" y="372" class="body">时间分层校准 + Lfreq/Lpred</text><text x="832" y="398" class="body">VGGT 与 Adapter 保持 FP16</text>
+  <text x="832" y="438" class="label">通过门槛</text><text x="832" y="464" class="body">细节与纹理无明显伪影</text><text x="832" y="490" class="body">真实端到端时延下降</text><text x="832" y="516" class="small">没有低比特 kernel 就只算压缩</text>
+
+  <rect x="1176" y="154" width="356" height="404" rx="24" fill="#f1eaff" stroke="#7546c9" class="card"/>
+  <circle cx="1220" cy="199" r="25" fill="#7546c9"/><text x="1220" y="207" text-anchor="middle" font-size="22" font-weight="800" fill="white">A3</text>
+  <text x="1260" y="207" class="h2">联合低比特部署</text>
+  <text x="1202" y="254" class="label">目标</text><text x="1202" y="280" class="body">合并两个量化主干并测系统收益</text>
+  <text x="1202" y="320" class="label">实现</text><text x="1202" y="346" class="body">Quant VGGT + Quant DiT</text><text x="1202" y="372" class="body">Adapter / Heads / Decoder FP16</text><text x="1202" y="398" class="body">可选：1–4 step 蒸馏</text>
+  <text x="1202" y="438" class="label">通过门槛</text><text x="1202" y="464" class="body">端到端 latency / 显存 / 功耗</text><text x="1202" y="490" class="body">SR 质量 + 几何一致性联合验收</text><text x="1202" y="516" class="small">失败时按 A1/A2 结果定位回退点</text>
+
+  <path d="M388 356 H426" class="edge"/><path d="M758 356 H796" class="edge"/><path d="M1128 356 H1166" class="edge"/>
+  <rect x="86" y="612" width="1446" height="106" rx="20" fill="#fff" stroke="#aab6c8" stroke-width="1.7"/>
+  <text x="112" y="644" class="label">全阶段统一测试矩阵</text>
+  <text x="112" y="674" class="body">图像：PSNR / SSIM / LPIPS / DISTS / 高频能量　｜　视频/多视图：tLPIPS / warp error / reprojection error / flicker</text>
+  <text x="112" y="701" class="body">系统：VGGT、Adapter、单次 DiT、完整采样、Decoder 分项 latency；峰值显存；真实 batch / 视角数 / 分辨率；kernel 与硬件版本</text>
+  <text x="1518" y="752" text-anchor="end" class="small">建议路线图；性能门槛需按具体数据集、DiT 主干和硬件重新设定</text>
+</svg>

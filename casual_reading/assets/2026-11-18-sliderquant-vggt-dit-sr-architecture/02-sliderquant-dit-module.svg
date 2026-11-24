@@ -1,0 +1,136 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">SliderQuant 与 DiT 超分模块的结合设计</title>
+  <desc id="desc">上半部分为仅在离线执行的滑窗量化校准，下半部分为部署后的低比特 DiT 超分块。紫色虚线表示离线校准，蓝色表示低比特线性层，橙色表示保留高精度的算子。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fbff"/><stop offset="1" stop-color="#f5f0ff"/></linearGradient>
+    <linearGradient id="qfill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dce9ff"/><stop offset="1" stop-color="#c7dcff"/></linearGradient>
+    <linearGradient id="fpfill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3dd"/><stop offset="1" stop-color="#ffe4b7"/></linearGradient>
+    <linearGradient id="calfill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3eaff"/><stop offset="1" stop-color="#e8d8ff"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#28344f" flood-opacity="0.13"/></filter>
+    <marker id="arrow" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#4d5d78"/></marker>
+    <marker id="arrowPurple" markerWidth="11" markerHeight="11" refX="9" refY="5.5" orient="auto"><path d="M0,0 L10,5.5 L0,11 z" fill="#7546c9"/></marker>
+    <style>
+      text{font-family:Inter,"Noto Sans CJK SC","Microsoft YaHei",sans-serif}.h1{font-size:32px;font-weight:800;fill:#15213a}.h2{font-size:22px;font-weight:800;fill:#24324b}.label{font-size:17px;font-weight:750;fill:#24324b}.body{font-size:14px;fill:#526174}.small{font-size:12px;fill:#68758a}.white{fill:white}.q{fill:url(#qfill);stroke:#2f67c8;stroke-width:2}.fp{fill:url(#fpfill);stroke:#c87808;stroke-width:2}.cal{fill:url(#calfill);stroke:#7546c9;stroke-width:2}.box{fill:#fff;stroke:#9aa8bc;stroke-width:1.7}.edge{fill:none;stroke:#4d5d78;stroke-width:2.4;marker-end:url(#arrow)}.cedge{fill:none;stroke:#7546c9;stroke-width:2.4;stroke-dasharray:9 7;marker-end:url(#arrowPurple)}
+    </style>
+  </defs>
+  <rect width="1600" height="980" rx="30" fill="url(#bg)"/>
+  <text x="800" y="52" text-anchor="middle" class="h1">SliderQuant × DiT-SR：离线校准与在线模块必须解耦</text>
+  <text x="800" y="82" text-anchor="middle" class="body">SliderQuant 不增加在线网络分支；α 与低秩 AB 在导出时吸收到权重，只留下可被 kernel 加速的 QLinear</text>
+
+  <!-- Offline calibration lane -->
+  <rect x="42" y="112" width="1516" height="292" rx="24" fill="#fbf8ff" stroke="#7546c9" stroke-width="2.5" stroke-dasharray="11 8"/>
+  <rect x="64" y="130" width="220" height="38" rx="19" fill="#7546c9"/>
+  <text x="174" y="156" text-anchor="middle" class="label white">仅离线：SliderQuant 校准</text>
+
+  <rect x="76" y="202" width="230" height="116" rx="16" class="cal" filter="url(#shadow)"/>
+  <text x="191" y="230" text-anchor="middle" class="label">SR 校准批次</text>
+  <text x="191" y="256" text-anchor="middle" class="body">LR/HR 图像对或视频片段</text>
+  <text x="191" y="279" text-anchor="middle" class="body">按低/中/高噪声分层采样 t</text>
+  <text x="191" y="302" text-anchor="middle" class="body">覆盖退化类型与尺度 ×2/×4</text>
+
+  <rect x="368" y="187" width="210" height="143" rx="16" class="box"/>
+  <text x="473" y="218" text-anchor="middle" class="label">FP16 教师窗口</text>
+  <text x="473" y="246" text-anchor="middle" class="body">DiT Block ℓ … ℓ+s−1</text>
+  <text x="473" y="271" text-anchor="middle" class="body">输出 F(W, X, t, cLR)</text>
+  <text x="473" y="301" text-anchor="middle" class="small">冻结原始权重，提供重建目标</text>
+
+  <rect x="640" y="187" width="260" height="143" rx="16" class="cal"/>
+  <text x="770" y="216" text-anchor="middle" class="label">量化学生窗口</text>
+  <text x="770" y="244" text-anchor="middle" class="body">学习通道缩放 α 与 rank-4 AB</text>
+  <text x="770" y="269" text-anchor="middle" class="body">Intra-S：γ=0.5，分 2 阶段扩展</text>
+  <text x="770" y="294" text-anchor="middle" class="body">QKV / Proj / FFN 同窗联合重建</text>
+  <text x="770" y="316" text-anchor="middle" class="small">建议从 W4A8 起步，不直接上 W4A4</text>
+
+  <rect x="962" y="180" width="272" height="158" rx="16" class="cal"/>
+  <text x="1098" y="209" text-anchor="middle" class="label">SR 感知校准目标</text>
+  <text x="1098" y="237" text-anchor="middle" class="body">Lfeat：窗口输出重建</text>
+  <text x="1098" y="261" text-anchor="middle" class="body">Lpred：ε / v / x₀ 预测一致</text>
+  <text x="1098" y="285" text-anchor="middle" class="body">Lfreq：高频 / 边缘保真</text>
+  <text x="1098" y="309" text-anchor="middle" class="body">Lt：跨 timestep 稳定性</text>
+  <text x="1098" y="329" text-anchor="middle" class="small">后 3 项是面向 DiT-SR 的扩展设计</text>
+
+  <rect x="1298" y="198" width="218" height="122" rx="16" class="cal"/>
+  <text x="1407" y="226" text-anchor="middle" class="label">导出</text>
+  <text x="1407" y="253" text-anchor="middle" class="body">W̃ = W ⊙ α + AB</text>
+  <text x="1407" y="279" text-anchor="middle" class="body">量化并打包成 QLinear</text>
+  <text x="1407" y="302" text-anchor="middle" class="small">在线不保留校准分支</text>
+
+  <path d="M306 260 H358" class="cedge"/><path d="M578 260 H630" class="cedge"/><path d="M900 260 H952" class="cedge"/><path d="M1234 260 H1288" class="cedge"/>
+
+  <text x="92" y="372" class="small">Inter-S 深度调度：</text>
+  <rect x="220" y="347" width="74" height="34" rx="8" class="cal"/><text x="257" y="369" text-anchor="middle" class="small">B1</text>
+  <rect x="304" y="347" width="106" height="34" rx="8" class="cal"/><text x="357" y="369" text-anchor="middle" class="small">B1–B2</text>
+  <rect x="420" y="347" width="136" height="34" rx="8" class="cal"/><text x="488" y="369" text-anchor="middle" class="small">B1–B4</text>
+  <text x="576" y="369" class="small">→ 中段 [Bℓ,Bℓ+1] stride=1 →</text>
+  <rect x="838" y="347" width="136" height="34" rx="8" class="cal"/><text x="906" y="369" text-anchor="middle" class="small">B(L−3)–BL</text>
+  <rect x="984" y="347" width="106" height="34" rx="8" class="cal"/><text x="1037" y="369" text-anchor="middle" class="small">B(L−1)–BL</text>
+  <rect x="1100" y="347" width="74" height="34" rx="8" class="cal"/><text x="1137" y="369" text-anchor="middle" class="small">BL</text>
+  <text x="1212" y="369" class="small">首末层为锚点；实际边界由敏感度扫描决定</text>
+
+  <!-- Runtime lane -->
+  <rect x="42" y="432" width="1516" height="500" rx="24" fill="#ffffff" stroke="#b5c2d4" stroke-width="2"/>
+  <rect x="64" y="450" width="260" height="38" rx="19" fill="#315fc4"/>
+  <text x="194" y="476" text-anchor="middle" class="label white">在线：部署后的 DiT-SR Block</text>
+
+  <rect x="76" y="575" width="150" height="84" rx="15" class="box" filter="url(#shadow)"/>
+  <text x="151" y="607" text-anchor="middle" class="label">hℓ</text><text x="151" y="634" text-anchor="middle" class="body">噪声 / LR latent tokens</text>
+
+  <rect x="276" y="542" width="174" height="150" rx="16" class="fp"/>
+  <text x="363" y="572" text-anchor="middle" class="label">AdaLN-Zero</text>
+  <text x="363" y="600" text-anchor="middle" class="body">timestep t</text>
+  <text x="363" y="624" text-anchor="middle" class="body">SR scale / degradation</text>
+  <text x="363" y="651" text-anchor="middle" class="small">Norm、调制、门控保留</text>
+  <text x="363" y="671" text-anchor="middle" class="small">FP16 / BF16</text>
+
+  <rect x="500" y="528" width="244" height="178" rx="16" class="q" filter="url(#shadow)"/>
+  <text x="622" y="558" text-anchor="middle" class="label">Quant Self-Attention</text>
+  <text x="622" y="588" text-anchor="middle" class="body">Q/K/V：W4A8 QLinear</text>
+  <text x="622" y="613" text-anchor="middle" class="body">QKᵀ、Softmax：FP16/BF16</text>
+  <text x="622" y="638" text-anchor="middle" class="body">Out Proj：W4A8 QLinear</text>
+  <text x="622" y="666" text-anchor="middle" class="small">激活按 timestep 使用独立 scale</text>
+  <text x="622" y="687" text-anchor="middle" class="small">先保 A8；验证后再尝试 A4</text>
+
+  <rect x="794" y="528" width="244" height="178" rx="16" class="q"/>
+  <text x="916" y="558" text-anchor="middle" class="label">Geometry Cross-Attn</text>
+  <text x="916" y="588" text-anchor="middle" class="body">Q：DiT tokens</text>
+  <text x="916" y="613" text-anchor="middle" class="body">K/V：VGGT geometry tokens</text>
+  <text x="916" y="638" text-anchor="middle" class="body">线性投影：W4A8</text>
+  <text x="916" y="666" text-anchor="middle" class="small">低置信区域由 gate 衰减</text>
+  <text x="916" y="687" text-anchor="middle" class="small">softmax 与 gate 保持高精度</text>
+
+  <rect x="1088" y="542" width="174" height="150" rx="16" class="fp"/>
+  <text x="1175" y="572" text-anchor="middle" class="label">AdaLN-Zero</text>
+  <text x="1175" y="601" text-anchor="middle" class="body">Residual + Norm</text>
+  <text x="1175" y="627" text-anchor="middle" class="body">FP16 / BF16</text>
+  <text x="1175" y="654" text-anchor="middle" class="small">保护尺度与偏置路径</text>
+
+  <rect x="1312" y="528" width="206" height="178" rx="16" class="q" filter="url(#shadow)"/>
+  <text x="1415" y="558" text-anchor="middle" class="label">Quant FFN</text>
+  <text x="1415" y="588" text-anchor="middle" class="body">FC1：W4A8</text>
+  <text x="1415" y="613" text-anchor="middle" class="body">GELU / SiLU：FP16</text>
+  <text x="1415" y="638" text-anchor="middle" class="body">FC2：W4A8</text>
+  <text x="1415" y="666" text-anchor="middle" class="small">中段 FFN 是首选低比特区</text>
+  <text x="1415" y="687" text-anchor="middle" class="small">末层与输出投影先保高精度</text>
+
+  <path d="M226 617 H266" class="edge"/><path d="M450 617 H490" class="edge"/><path d="M744 617 H784" class="edge"/><path d="M1038 617 H1078" class="edge"/><path d="M1262 617 H1302" class="edge"/>
+  <rect x="1322" y="750" width="186" height="76" rx="14" class="box"/><text x="1415" y="779" text-anchor="middle" class="label">hℓ+1</text><text x="1415" y="806" text-anchor="middle" class="body">残差输出</text>
+  <path d="M1415 706 V740" class="edge"/>
+
+  <rect x="764" y="758" width="300" height="92" rx="16" class="box"/>
+  <text x="914" y="786" text-anchor="middle" class="label">VGGT 条件适配器</text>
+  <text x="914" y="812" text-anchor="middle" class="body">camera / depth / point / confidence</text>
+  <text x="914" y="834" text-anchor="middle" class="small">投影为 K/V token 与空间 residual</text>
+  <path d="M914 758 V716" class="edge"/>
+
+  <rect x="86" y="762" width="554" height="120" rx="16" fill="#fff8eb" stroke="#c87808" stroke-width="1.8"/>
+  <text x="110" y="791" class="label">建议的精度保护岛</text>
+  <text x="110" y="820" class="body">• patch / latent embed、AdaLN、LayerNorm、RoPE、Softmax、门控、最终预测头：FP16/BF16</text>
+  <text x="110" y="847" class="body">• QKV / Proj / FFN：先 W4A8；只有在真实 kernel 可用时，低比特才会转化为时延收益</text>
+  <text x="110" y="871" class="small">这是面向 DiT-SR 的工程设计，不是 SliderQuant 论文已验证的模型配置。</text>
+
+  <rect x="1178" y="854" width="340" height="46" rx="12" fill="#eef3fa" stroke="#8190a7"/>
+  <circle cx="1205" cy="877" r="9" fill="#c7dcff" stroke="#2f67c8"/><text x="1222" y="882" class="small">低比特在线算子</text>
+  <circle cx="1337" cy="877" r="9" fill="#ffe4b7" stroke="#c87808"/><text x="1354" y="882" class="small">高精度保护岛</text>
+  <line x1="1452" y1="877" x2="1490" y2="877" stroke="#7546c9" stroke-width="2" stroke-dasharray="7 5"/><text x="1498" y="882" class="small" text-anchor="end">离线</text>
+  <text x="1518" y="950" text-anchor="end" class="small">综合 SliderQuant §3.1–3.2、DiT block 结构与 Q-DiT4SR 的 timestep / 高频敏感性；本图为设计推演</text>
+</svg>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="paper-archive-title" content="Forge4D 的 4.45 FPS 到底如何计算">
+  <meta name="paper-archive-summary" content="4.45 FPS 不是关键帧重建模块单独的速度，而是每个新动态 3DGS 状态依次经过 176.50 ms 重建和 47.77 ms motion prediction 后，以 224.27 ms/状态完成，倒数约为 4.46 状态/秒。">
+  <meta name="paper-archive-created" content="2026-11-10T17:06:10+08:00">
+  <title>Forge4D 的 4.45 FPS 到底如何计算</title>
+  <style>
+    :root { color-scheme: light dark; --bg:#f4f3ef; --paper:#fffdfa; --ink:#1c2533; --muted:#637083; --line:#d9dee7; --accent:#2957d3; --accent2:#7449d8; --good:#087f5b; --warn:#b45309; --soft:#edf2ff; --shadow:0 18px 50px rgba(29,42,68,.10); }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:linear-gradient(180deg,#e9edff 0,#f4f3ef 24rem); color:var(--ink); font:16px/1.72 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; }
+    a { color:var(--accent); text-underline-offset:3px; }
+    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:22px 0; color:#34415a; }
+    .topbar a { text-decoration:none; font-weight:700; }
+    .badge { display:inline-flex; align-items:center; gap:8px; border:1px solid rgba(41,87,211,.22); background:rgba(255,255,255,.72); border-radius:999px; padding:6px 11px; font-size:.78rem; font-weight:800; letter-spacing:.03em; color:#304a91; }
+    .hero { position:relative; overflow:hidden; border:1px solid rgba(255,255,255,.7); border-radius:28px; padding:clamp(28px,5vw,62px); color:white; background:radial-gradient(circle at 80% 10%,rgba(255,255,255,.24),transparent 28%),linear-gradient(135deg,#17358f,#5841c5 68%,#9c4dcc); box-shadow:var(--shadow); }
+    .hero:after { content:""; position:absolute; width:280px; height:280px; border:1px solid rgba(255,255,255,.25); border-radius:50%; right:-90px; bottom:-160px; }
+    .eyebrow { font-size:.78rem; text-transform:uppercase; letter-spacing:.14em; font-weight:900; opacity:.82; }
+    h1 { max-width:900px; margin:.35em 0 .3em; font-size:clamp(2rem,5vw,4.5rem); line-height:1.05; letter-spacing:-.045em; }
+    .hero-summary { max-width:850px; margin:0; font-size:clamp(1.05rem,2vw,1.32rem); opacity:.92; }
+    .meta { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+    .meta span,.meta a { color:white; text-decoration:none; border:1px solid rgba(255,255,255,.28); background:rgba(255,255,255,.11); border-radius:999px; padding:7px 11px; font-size:.82rem; }
+    main { display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:28px; padding:34px 0 70px; }
+    article { min-width:0; }
+    aside { align-self:start; position:sticky; top:18px; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:20px; padding:24px; box-shadow:0 8px 30px rgba(29,42,68,.05); margin-bottom:20px; }
+    .toc a { display:block; padding:7px 0; text-decoration:none; color:var(--muted); border-bottom:1px dashed var(--line); font-size:.9rem; }
+    .toc a:last-child { border:0; }
+    h2 { margin:0 0 14px; font-size:clamp(1.45rem,3vw,2.05rem); line-height:1.2; letter-spacing:-.025em; }
+    h3 { margin:0 0 9px; font-size:1.04rem; }
+    p { margin:.65em 0; }
+    .lede { color:#30466f; font-size:1.08rem; font-weight:700; }
+    .key-grid,.metric-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+    .key { border-top:4px solid var(--accent); background:linear-gradient(180deg,var(--soft),transparent); border-radius:14px; padding:17px; font-weight:650; }
+    .flow { display:flex; align-items:stretch; gap:10px; overflow-x:auto; padding:4px 2px 12px; }
+    .flow-node { flex:1 0 170px; min-height:116px; border:1px solid #cdd7fa; border-radius:16px; padding:17px; background:linear-gradient(145deg,#f8faff,#edf2ff); }
+    .flow-node strong { display:block; color:#2447ad; font-size:1rem; }
+    .flow-node small { display:block; margin-top:7px; color:#56647b; }
+    .arrow { align-self:center; color:var(--accent2); font-size:1.55rem; font-weight:900; }
+    .metric { border-radius:16px; padding:18px; background:#f6f7fb; border:1px solid var(--line); }
+    .metric.good { background:#ecfdf5; border-color:#b7ead7; }
+    .metric.warn { background:#fff7ed; border-color:#fed7aa; }
+    .metric-label { color:var(--muted); font-size:.79rem; text-transform:uppercase; letter-spacing:.07em; font-weight:800; }
+    .metric-value { display:block; margin:4px 0; font-size:1.7rem; line-height:1.15; font-weight:900; letter-spacing:-.03em; }
+    .metric-context { color:var(--muted); font-size:.85rem; }
+    ul { padding-left:1.25rem; }
+    li { margin:.45em 0; }
+    .callout { margin:18px 0; border-left:5px solid var(--accent); background:#eef3ff; border-radius:0 14px 14px 0; padding:16px 18px; }
+    .callout.good { border-color:var(--good); background:#ecfdf5; }
+    .callout.warn { border-color:var(--warn); background:#fff7ed; }
+    .table-wrap { overflow:auto; margin:18px 0; border:1px solid var(--line); border-radius:14px; }
+    table { width:100%; border-collapse:collapse; min-width:520px; background:var(--paper); }
+    caption { text-align:left; padding:13px 15px; font-weight:800; background:#f1f4fa; }
+    th,td { padding:12px 15px; text-align:left; vertical-align:top; border-top:1px solid var(--line); }
+    th { color:#30466f; font-size:.84rem; background:#fafbfe; }
+    figure { position:relative; margin:20px 0; }
+    figure img { width:100%; max-height:680px; object-fit:contain; background:#f5f6f8; border:1px solid var(--line); border-radius:16px; transition:transform .18s ease,box-shadow .18s ease; }
+    .figure-link { display:block; line-height:0; }
+    .figure-link:hover img { transform:translateY(-2px); box-shadow:0 14px 36px rgba(29,42,68,.13); }
+    figcaption { color:var(--muted); font-size:.86rem; margin-top:8px; }
+    .visual-badges { position:absolute; z-index:2; display:flex; gap:6px; top:10px; left:10px; }
+    .visual-badges span { border:1px solid rgba(255,255,255,.7); background:rgba(22,32,51,.82); color:white; border-radius:999px; padding:4px 8px; font-size:.68rem; font-weight:800; text-transform:uppercase; letter-spacing:.05em; backdrop-filter:blur(8px); }
+    .visual-group { margin:24px 0; padding:18px; border:1px solid var(--line); border-radius:17px; background:#f8f9fc; }
+    .visual-group h3 { margin-bottom:2px; }
+    .visual-group-caption { margin:.25em 0 14px; color:var(--muted); }
+    .visual-grid { display:grid; grid-template-columns:repeat(var(--visual-columns,2),minmax(0,1fr)); gap:14px; }
+    .figure-card { margin:0; min-width:0; }
+    .figure-card img { height:clamp(180px,28vw,360px); object-fit:contain; }
+    code { border:1px solid var(--line); background:#f2f4f8; border-radius:6px; padding:.12em .36em; font-size:.88em; }
+    .refs { list-style:none; padding:0; }
+    .refs li { padding:10px 0; border-bottom:1px solid var(--line); }
+    .refs li:last-child { border:0; }
+    .foot { color:var(--muted); font-size:.82rem; padding:0 0 40px; }
+    @media (max-width:820px) { main { grid-template-columns:1fr; } aside { position:static; order:-1; } .toc { display:none; } .hero { border-radius:22px; } .visual-grid { grid-template-columns:1fr; } }
+    @media (prefers-color-scheme:dark) { :root { --bg:#111827; --paper:#182131; --ink:#e7edf7; --muted:#a8b3c7; --line:#334158; --soft:#202d4a; } body { background:linear-gradient(180deg,#151d3d 0,#111827 24rem); } .topbar { color:#cbd5e1; } .badge { background:#1d2941;color:#c8d5ff; } .lede { color:#cad7f0; } .key { background:#202d4a; } .flow-node { background:#202d4a;border-color:#405282; } .flow-node strong { color:#b8c7ff; } .flow-node small { color:#bdc8dc; } .metric,th,caption { background:#202a3b; } .metric.good,.callout.good { background:#12352d; } .metric.warn,.callout.warn { background:#3b2a16; } .callout { background:#202f52; } .visual-group { background:#202a3b; } code { background:#222c3d; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="topbar"><a href="index.html">← Casual Reading</a><span class="badge">PAPER ANALYSIS</span></nav>
+    <header class="hero"><div class="eyebrow">窄范围速度口径解释</div><h1>Forge4D 的 4.45 FPS 到底如何计算</h1><p class="hero-summary">4.45 FPS 不是关键帧重建模块单独的速度，而是每个新动态 3DGS 状态依次经过 176.50 ms 重建和 47.77 ms motion prediction 后，以 224.27 ms/状态完成，倒数约为 4.46 状态/秒。</p><div class="meta"><a href="https://arxiv.org/abs/2509.24209" target="_blank" rel="noreferrer">Forge4D: Feed-Forward 4D Human Reconstruction and Interpolation from Uncalibrated Sparse-View Videos</a><span>Yingdong Hu et al.</span><span>ECCV 2026</span><span>2026</span><span>arXiv:2509.24209</span></div></header>
+    <main>
+      <article><section class="panel" id="key-points"><h2>核心结论</h2><div class="key-grid"><div class="key"><code>Key-frame Reconstruction = 176.50 ms</code> 只是 full model 的第一段，并不等于整个动态状态已经输出。</div><div class="key">后续还要执行 <code>Motion Prediction = 47.77 ms</code>，因此 full model 为 224.27 ms；<code>1000/224.27≈4.46</code>，论文报告为 4.45 FPS。</div><div class="key">该 FPS 的单位应理解为“每秒完成约 4.45 个新的动态 3DGS 状态”，不是相机输入、渲染或插值视频的统一帧率。</div><div class="key">加入 10/20 个廉价插值后，论文用 <code>10/0.22510</code> 和 <code>20/0.22601</code> 得到 44.42/88.48 输出 FPS；新观测更新率仍约 4.45 FPS。</div></div></section><section class="panel" id="metrics"><h2>关键证据</h2><div class="metric-grid"><div class="metric "><span class="metric-label">关键帧重建</span><span class="metric-value">176.50 ms</span><span class="metric-context">当前 4-view bundle → 当前 3DGS</span></div><div class="metric "><span class="metric-label">运动预测</span><span class="metric-value">47.77 ms</span><span class="metric-context">t−1 与 t → 双向 3D motion</span></div><div class="metric "><span class="metric-label">Full Model</span><span class="metric-value">224.27 ms</span><span class="metric-context">约等于前两段串行总和</span></div><div class="metric "><span class="metric-label">新状态吞吐</span><span class="metric-value">4.45 FPS</span><span class="metric-context">1000/224.27≈4.46</span></div><div class="metric warn"><span class="metric-label">+10 插值输出</span><span class="metric-value">44.42 FPS</span><span class="metric-context">10 帧/225.10 ms；不是新状态更新率</span></div></div></section><section class="panel" id="section-1"><h2>计算过程</h2><p>从第二个时间点开始，Forge4D 要完成两件事。第一，用当前时刻的四路输入重建一组 pixel-aligned 3D Gaussians，论文测得 176.50 ms。第二，把前一时刻与当前时刻的中间 features 做 cross-attention，预测 backward/forward 3D motion，再做动态融合，motion prediction 为 47.77 ms。</p><p>两部分在论文的 full-model 口径中按一次新状态顺序执行：176.50+47.77=224.27 ms。于是 steady-state throughput 为 <code>1/0.22427=4.459</code> 个新状态每秒，四舍五入就是 4.45 FPS。这里没有额外的神秘加速，也不是说 176 ms 模块本身能跑 4.45 FPS。</p><p>第一帧没有前一帧可供运动估计，理论上只需静态重建；但稳定运行到后续帧时，每个新时刻都需要完成重建和相邻帧 motion，系统吞吐按 224.27 ms 计算。</p><figure class="figure-full"><div class="visual-badges"><span>concept</span><span>redrawn</span></div><a class="figure-link" href="assets/2026-11-10-forge4d-4-45fps-explained/01-timeline.png" target="_blank"><img src="assets/2026-11-10-forge4d-4-45fps-explained/01-timeline.png" alt="Forge4D 从关键帧重建到新状态和插值输出的时间线" loading="lazy"></a><figcaption>重绘时间线（redrawn）：依据 Forge4D Table 6。176.50 ms 重建与 47.77 ms motion 组成 224.27 ms full model；右侧插值分支改变输出帧数量，不改变新观测更新频率。 · <a href="https://arxiv.org/html/2509.24209#S4.T7.fig1" target="_blank" rel="noreferrer">source</a></figcaption></figure></section><section class="panel" id="section-2"><h2>为什么插值后会显示 44.42 或 88.48 FPS</h2><p>Full Model 一次区间只计一个新动态状态，所以分子是 1：<code>1/0.22427≈4.46</code>。</p><p><code>+Interpolate 10 Steps</code> 一次相邻关键帧区间总计 225.10 ms，却输出 10 个时间采样，因此论文用 <code>10/0.22510=44.42</code> FPS。<code>+Interpolate 20 Steps</code> 同理：<code>20/0.22601≈88.49</code> FPS。</p><p>这些额外帧通过已预测的双向运动和 Gaussian fusion 生成，不重新吸收新的相机观测。所以观看端可以是 44/88 FPS，但如果人物突然做了新动作，模型仍要等下一次约 224 ms 的状态更新才能反映出来。</p><div class="callout warn"><h3>正确的四个性能指标</h3><div>分别记录 camera ingest FPS、new-state FPS、render FPS 和 interpolated-output FPS。Forge4D Table 6 的 4.45 是 new-state FPS，44.42/88.48 是 interpolated-output FPS。</div></div></section><section class="panel" id="section-3"><h2>这是否使用了流水线并行</h2><p>论文 Table 6 没有声明通过跨帧 pipeline parallel 把 176.50 ms 和 47.77 ms 重叠；从 full latency 恰好接近两者之和来看，报告口径是串行端到端。</p><p>理论上可以在多 stream 或多 GPU 上让下一时刻的静态重建与上一时刻的 motion/fusion 部分重叠，但 motion 依赖相邻两帧 features，state token 也按时间递推，实际调度需要处理依赖、显存占用和同步。论文的 4.45 FPS 不包含这种额外优化。</p></section><section class="panel" id="limitations"><h2>局限与开放问题</h2><ul><li>Table 6 单列 <code>Interpolation (10 Steps)=1.46 ms</code>，但 Full Model 与 +10 行的差为 0.83 ms，可能来自独立 microbenchmark、测量噪声或统计口径差异；不影响 4.45 FPS 的主计算。</li><li>论文使用 FPS 一词同时描述新状态与插值输出，若不看分子数量容易误解。</li><li>当前公开 checkpoint 尚未发布，因此无法对 Table 6 在本地复测。</li></ul></section><section class="panel" id="evidence-boundaries"><h2>证据与推断边界</h2><ul><li>论文表格直接给出 176.50、47.77、224.27 ms 和 4.45 FPS。</li><li><code>10/0.22510</code>、<code>20/0.22601</code> 是对论文插值行数值的算术解释。</li><li>跨 GPU pipeline overlap 是工程推断，不是 Forge4D 论文报告能力。</li></ul></section><section class="panel" id="references"><h2>来源与版本</h2><p class="lede">核查时间：2026-11-10（Asia/Shanghai）。本页专门解释 Forge4D Table 6 的速度口径。</p><ul class="refs"><li><a href="https://arxiv.org/html/2509.24209" target="_blank" rel="noreferrer">Forge4D paper</a> — Table 6 speed ablation</li><li><a href="https://github.com/zhenliuZJU/Forge4D" target="_blank" rel="noreferrer">Forge4D code</a></li></ul></section></article>
+      <aside><div class="panel"><h3>阅读信息</h3><p><strong>窄范围速度口径解释</strong><br><span class="metric-context">2026-11-10 17:06 CST</span></p><span class="badge">Forge4D</span> <span class="badge">4.45 FPS</span> <span class="badge">latency</span> <span class="badge">dynamic 3DGS</span> <span class="badge">interpolation FPS</span></div><div class="panel toc"><h3>目录</h3><a href="#key-points">核心结论</a><a href="#metrics">关键证据</a><a href="#section-1">计算过程</a><a href="#section-2">为什么插值后会显示 44.42 或 88.48 FPS</a><a href="#section-3">这是否使用了流水线并行</a><a href="#limitations">局限与开放问题</a><a href="#evidence-boundaries">证据与推断边界</a><a href="#references">来源与版本</a></div></aside>
+    </main>
+    <footer class="foot">Generated on 2026-11-10 17:06 CST · Evidence and interpretations should be checked against the linked paper version.</footer>
+  </div>
+  <script type="application/json" id="paper-reading-metadata">{"title": "Forge4D 的 4.45 FPS 到底如何计算", "summary": "4.45 FPS 不是关键帧重建模块单独的速度，而是每个新动态 3DGS 状态依次经过 176.50 ms 重建和 47.77 ms motion prediction 后，以 224.27 ms/状态完成，倒数约为 4.46 状态/秒。", "created_at": "2026-11-10T17:06:10+08:00", "paper_title": "Forge4D: Feed-Forward 4D Human Reconstruction and Interpolation from Uncalibrated Sparse-View Videos", "paper_url": "https://arxiv.org/abs/2509.24209", "analysis_kind": "窄范围速度口径解释", "tags": ["Forge4D", "4.45 FPS", "latency", "dynamic 3DGS", "interpolation FPS"]}</script>
+</body>
+</html>
